@@ -1,0 +1,47 @@
+# dependencies
+app/node_modules/
+node_modules/
+
+# next.js
+app/.next/
+app/out/
+
+# production
+app/build/
+
+# env files
+app/.env*
+!app/.env.example
+.env*
+
+# CJ API token cache
+app/.cj-token.json
+
+# netlify
+.netlify
+app/.netlify
+
+# vercel
+app/.vercel
+
+# misc
+.DS_Store
+*.pem
+*.tsbuildinfo
+app/next-env.d.ts
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# sensitive files
+cjinfo.txt
+
+# claude code
+.claude/
+
+# IDE
+.vscode/
+.idea/
