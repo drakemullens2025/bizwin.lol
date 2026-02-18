@@ -158,14 +158,31 @@ export default function CatalogPage() {
           <div>
             {/* Search Bar */}
             <form onSubmit={handleSearch} style={{ marginBottom: 'var(--space-6)', display: 'flex', gap: 'var(--space-3)' }}>
-              <input
-                type="text"
-                className="input"
-                placeholder="Search products..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ flex: 1 }}
-              />
+              <div style={{ flex: 1, position: 'relative' }}>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Search products..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ width: '100%', paddingRight: searchQuery ? '36px' : undefined }}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => { setSearchQuery(''); setPage(1); searchProducts(true); }}
+                    style={{
+                      position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: 'var(--text-tertiary)', fontSize: '1.125rem', lineHeight: 1,
+                      padding: '4px', borderRadius: '50%',
+                    }}
+                    title="Clear search"
+                  >
+                    &#x2715;
+                  </button>
+                )}
+              </div>
               <button type="submit" className="btn btn-primary" disabled={loading}>
                 {loading ? 'Searching...' : 'Search'}
               </button>

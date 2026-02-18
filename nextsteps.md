@@ -68,14 +68,31 @@
 - CSV export for orders, products, and summary data
 - Analytics dashboard with Store Performance, Learning Progress, AI Review, Export tabs
 
-### Infrastructure
+### Infrastructure & Polish
 - 40 API routes, 16 platform pages, 60 scenarios
 - TypeScript compiles clean, Next.js production build passes
 - Database: 2 SQL migration files (base schema + frontier schema)
+- Landing page with robots2.png hero, gradient overlays, fire pitch sections
+- Global branding: CJVenture → bizwin.lol, roboticon.jpg favicon
+- Netlify deployment config with `@netlify/plugin-nextjs`, security headers
+- Git repo at github.com/drakemullens2025/bizwin.lol.git
+- CJ token cache migrated from filesystem to Supabase `kv_store` table for serverless
+- Middleware for wildcard subdomain routing (`coolio.bizwin.lol` → `/store/coolio`)
+- Multi-store bug fix: endpoints now accept `?store_id=` param, fall back to primary store
+- Premium storefront template: clean white layout, animated product cards, image gallery, polished cart/checkout
+- Catalog search clear button
+- Store URL hyperlinks (open in new tab) on stores list and setup pages
 
 ---
 
 ## What Comes Next
+
+### Wildcard Subdomain Storefronts (optional upgrade)
+- Currently stores are served at `bizwin.lol/store/[slug]`
+- Middleware already exists for `[slug].bizwin.lol` → `/store/[slug]` rewriting
+- To enable: configure Netlify DNS for the domain, add `*.bizwin.lol` as domain alias in Netlify
+- Requires Netlify Pro plan (already active) and domain managed by Netlify DNS
+- No code changes needed — middleware is ready
 
 ### Phase 4.1 — Portfolio System (deferred — do last)
 - Student portfolio page showcasing completed scenarios, scores, stores, and achievements
@@ -85,7 +102,6 @@
 - *Rationale for deferral: need real student work to populate before building the display*
 
 ### Phase 5 — Production Readiness
-- **Environment & deployment**: Vercel deployment config, environment variable validation on startup
 - **Error handling audit**: Consistent error responses across all 40 API routes
 - **Loading states**: Skeleton loaders for all data-fetching pages
 - **Mobile responsiveness**: Test and fix all pages on small screens
@@ -121,4 +137,5 @@ Before testing frontier features (4.2-4.6), run `db/frontier-schema.sql` in the 
 - `product_events` — product search/view/add tracking
 - `store_templates` — white-label store themes
 - `analytics_snapshots` — daily store performance snapshots
+- `kv_store` — key-value cache for CJ token persistence across serverless instances
 - Column additions to `stores` (is_primary, template_id) and `cohorts` (curriculum_config)

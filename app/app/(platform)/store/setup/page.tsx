@@ -208,7 +208,18 @@ export default function StoreSetupPage() {
             {store ? 'Store Settings' : 'Create Your Store'}
           </h4>
           <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--text-tertiary)' }}>
-            {store ? `bizwin.lol/store/${store.slug}` : 'Set up your branded storefront'}
+            {store ? (
+              <a
+                href={`/store/${store.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: 'var(--accent-500)', textDecoration: 'none' }}
+                onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none'; }}
+              >
+                bizwin.lol/store/{store.slug} &#8599;
+              </a>
+            ) : 'Set up your branded storefront'}
           </p>
         </div>
         {store && (

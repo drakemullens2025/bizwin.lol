@@ -101,7 +101,7 @@ export async function PATCH(
   }
 }
 
-// DELETE /api/stores/[storeId] — soft delete (set is_published=false)
+// DELETE /api/stores/[storeId] — permanently delete store and its products
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ storeId: string }> }
@@ -127,18 +127,20 @@ export async function DELETE(
       return NextResponse.json({ error: 'Store not found' }, { status: 404 });
     }
 
-    const { data, error } = await supabase
+    // Delete store products first (FK constraint)
+    await supabase.from('store_products').delete().eq('store_id', storeId);
+
+    // Delete the store
+    const { error } = await supabase
       .from('stores')
-      .update({ is_published: false, updated_at: new Date().toISOString() })
-      .eq('id', storeId)
-      .select()
-      .single();
+      .delete()
+      .eq('id', storeId);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ store: data, message: 'Store unpublished' });
+    return NextResponse.json({ success: true, message: 'Store deleted' });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('DELETE /api/stores/[storeId] error:', message);

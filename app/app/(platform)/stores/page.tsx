@@ -21,6 +21,7 @@ export default function StoresPage() {
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -42,6 +43,29 @@ export default function StoresPage() {
 
     fetchStores();
   }, [user]);
+
+  const deleteStore = async (storeId: string, storeName: string) => {
+    if (!user) return;
+    if (!confirm(`Delete "${storeName}" and all its products? This cannot be undone.`)) return;
+    setDeleting(storeId);
+
+    try {
+      const res = await fetch(`/api/stores/${storeId}`, {
+        method: 'DELETE',
+        headers: { 'x-user-id': user.id },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setStores(prev => prev.filter(s => s.id !== storeId));
+      } else {
+        alert(data.error || 'Failed to delete store');
+      }
+    } catch (err) {
+      console.error('Delete store failed:', err);
+    } finally {
+      setDeleting(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -105,99 +129,130 @@ export default function StoresPage() {
           gap: 'var(--space-4)',
         }}>
           {stores.map((store) => (
-            <Link
+            <div
               key={store.id}
-              href={`/store/setup?store_id=${store.id}`}
-              style={{ textDecoration: 'none', color: 'inherit' }}
+              style={{
+                background: 'var(--surface-primary)',
+                border: '1px solid var(--border-primary)',
+                borderRadius: 'var(--radius-lg)',
+                padding: 'var(--space-5)',
+                transition: 'border-color 0.15s, box-shadow 0.15s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--accent-500)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border-primary)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             >
-              <div
-                style={{
-                  background: 'var(--surface-primary)',
-                  border: '1px solid var(--border-primary)',
-                  borderRadius: 'var(--radius-lg)',
-                  padding: 'var(--space-5)',
-                  cursor: 'pointer',
-                  transition: 'border-color 0.15s, box-shadow 0.15s',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--accent-500)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border-primary)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)' }}>
-                  <div>
-                    <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: 'var(--space-1)' }}>
-                      {store.store_name}
-                    </h3>
-                    <p style={{ fontSize: '0.8125rem', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
-                      /{store.slug}
-                    </p>
-                  </div>
-                  <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-                    {store.is_primary && (
-                      <span style={{
-                        fontSize: '0.6875rem',
-                        fontWeight: 600,
-                        padding: '2px 8px',
-                        borderRadius: '9999px',
-                        background: 'var(--accent-100, #dbeafe)',
-                        color: 'var(--accent-700, #1d4ed8)',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
-                      }}>
-                        Primary
-                      </span>
-                    )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: 'var(--space-1)' }}>
+                    {store.store_name}
+                  </h3>
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+                    /{store.slug}
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+                  {store.is_primary && (
                     <span style={{
                       fontSize: '0.6875rem',
                       fontWeight: 600,
                       padding: '2px 8px',
                       borderRadius: '9999px',
-                      background: store.is_published ? '#dcfce7' : '#fef3c7',
-                      color: store.is_published ? '#166534' : '#92400e',
+                      background: 'var(--accent-100, #dbeafe)',
+                      color: 'var(--accent-700, #1d4ed8)',
                       textTransform: 'uppercase',
                       letterSpacing: '0.05em',
                     }}>
-                      {store.is_published ? 'Published' : 'Draft'}
+                      Primary
                     </span>
-                  </div>
-                </div>
-
-                {store.description && (
-                  <p style={{
-                    fontSize: '0.875rem',
-                    color: 'var(--text-secondary)',
-                    marginBottom: 'var(--space-3)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                  )}
+                  <span style={{
+                    fontSize: '0.6875rem',
+                    fontWeight: 600,
+                    padding: '2px 8px',
+                    borderRadius: '9999px',
+                    background: store.is_published ? '#dcfce7' : '#fef3c7',
+                    color: store.is_published ? '#166534' : '#92400e',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
                   }}>
-                    {store.description}
-                  </p>
-                )}
-
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingTop: 'var(--space-3)',
-                  borderTop: '1px solid var(--border-primary)',
-                  fontSize: '0.8125rem',
-                  color: 'var(--text-tertiary)',
-                }}>
-                  <span>
-                    Template: {store.template_id || 'Custom'}
-                  </span>
-                  <span>
-                    Created {new Date(store.created_at).toLocaleDateString()}
+                    {store.is_published ? 'Published' : 'Draft'}
                   </span>
                 </div>
               </div>
-            </Link>
+
+              {store.description && (
+                <p style={{
+                  fontSize: '0.875rem',
+                  color: 'var(--text-secondary)',
+                  marginBottom: 'var(--space-3)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {store.description}
+                </p>
+              )}
+
+              {/* Actions row */}
+              <div style={{
+                display: 'flex',
+                gap: 'var(--space-2)',
+                marginBottom: 'var(--space-3)',
+              }}>
+                <Link
+                  href={`/store/setup?store_id=${store.id}`}
+                  className="btn btn-outline btn-sm"
+                  style={{ fontSize: '0.75rem', flex: 1, textAlign: 'center', textDecoration: 'none' }}
+                >
+                  Settings
+                </Link>
+                <Link
+                  href={`/store/products?store_id=${store.id}`}
+                  className="btn btn-outline btn-sm"
+                  style={{ fontSize: '0.75rem', flex: 1, textAlign: 'center', textDecoration: 'none' }}
+                >
+                  Products
+                </Link>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  style={{ fontSize: '0.75rem', color: 'var(--error-500, #dc2626)' }}
+                  onClick={() => deleteStore(store.id, store.store_name)}
+                  disabled={deleting === store.id}
+                >
+                  {deleting === store.id ? '...' : 'Delete'}
+                </button>
+              </div>
+
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingTop: 'var(--space-3)',
+                borderTop: '1px solid var(--border-primary)',
+                fontSize: '0.8125rem',
+                color: 'var(--text-tertiary)',
+              }}>
+                <a
+                  href={`/store/${store.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: 'var(--accent-500)', textDecoration: 'none' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none'; }}
+                >
+                  bizwin.lol/store/{store.slug} &#8599;
+                </a>
+                <span>
+                  Created {new Date(store.created_at).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
           ))}
         </div>
       )}

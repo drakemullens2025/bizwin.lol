@@ -11,11 +11,20 @@ export async function GET(req: NextRequest) {
   const supabase = getServiceClient();
   const storeId = req.nextUrl.searchParams.get('store_id');
 
-  let storeQuery = supabase.from('stores').select('id').eq('user_id', userId);
+  let store;
   if (storeId) {
-    storeQuery = storeQuery.eq('id', storeId);
+    const { data } = await supabase.from('stores').select('id').eq('user_id', userId).eq('id', storeId).maybeSingle();
+    store = data;
+  } else {
+    // Fall back: primary store, then first store
+    const { data: primary } = await supabase.from('stores').select('id').eq('user_id', userId).eq('is_primary', true).maybeSingle();
+    if (primary) {
+      store = primary;
+    } else {
+      const { data: first } = await supabase.from('stores').select('id').eq('user_id', userId).order('created_at', { ascending: true }).limit(1).maybeSingle();
+      store = first;
+    }
   }
-  const { data: store } = await storeQuery.maybeSingle();
 
   if (!store) {
     return NextResponse.json({ products: [] });
@@ -46,11 +55,19 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const requestedStoreId = body.store_id;
 
-  let storeQuery = supabase.from('stores').select('id, tier').eq('user_id', userId);
+  let store;
   if (requestedStoreId) {
-    storeQuery = storeQuery.eq('id', requestedStoreId);
+    const { data } = await supabase.from('stores').select('id, tier').eq('user_id', userId).eq('id', requestedStoreId).maybeSingle();
+    store = data;
+  } else {
+    const { data: primary } = await supabase.from('stores').select('id, tier').eq('user_id', userId).eq('is_primary', true).maybeSingle();
+    if (primary) {
+      store = primary;
+    } else {
+      const { data: first } = await supabase.from('stores').select('id, tier').eq('user_id', userId).order('created_at', { ascending: true }).limit(1).maybeSingle();
+      store = first;
+    }
   }
-  const { data: store } = await storeQuery.maybeSingle();
 
   if (!store) {
     return NextResponse.json({ error: 'Create a store first' }, { status: 400 });

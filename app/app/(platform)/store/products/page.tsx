@@ -2,6 +2,7 @@
 
 import { useUser } from '@stackframe/stack';
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 interface StoreProduct {
   id: string;
@@ -36,6 +37,8 @@ interface PricingAnalysis {
 
 export default function ProductsPage() {
   const user = useUser({ or: 'redirect' });
+  const searchParams = useSearchParams();
+  const storeIdParam = searchParams.get('store_id');
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCatalog, setShowCatalog] = useState(false);
@@ -56,7 +59,10 @@ export default function ProductsPage() {
   const loadProducts = useCallback(async () => {
     if (!user) return;
     try {
-      const res = await fetch('/api/store/products', { headers: { 'x-user-id': user.id } });
+      const url = storeIdParam
+        ? `/api/store/products?store_id=${storeIdParam}`
+        : '/api/store/products';
+      const res = await fetch(url, { headers: { 'x-user-id': user.id } });
       const data = await res.json();
       setProducts(data.products || []);
     } catch (err) {
@@ -64,7 +70,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, storeIdParam]);
 
   useEffect(() => { loadProducts(); }, [loadProducts]);
 
@@ -93,6 +99,7 @@ export default function ProductsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
         body: JSON.stringify({
+          store_id: storeIdParam || undefined,
           cj_product_id: cjProduct.pid,
           title: cjProduct.productNameEn,
           price: retailPrice,
