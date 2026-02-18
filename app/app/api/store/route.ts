@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient, ensureUserProfile } from '../../../lib/supabase';
 
-// GET /api/store — get current user's store
+// GET /api/store — get current user's store (supports ?store_id= for multi-store)
 export async function GET(req: NextRequest) {
   const userId = req.headers.get('x-user-id');
   if (!userId) {
@@ -9,14 +9,31 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = getServiceClient();
-  const { data, error } = await supabase
-    .from('stores')
-    .select('*')
-    .eq('user_id', userId)
-    .single();
+  const storeId = req.nextUrl.searchParams.get('store_id');
 
-  if (error && error.code !== 'PGRST116') {
+  let query = supabase.from('stores').select('*').eq('user_id', userId);
+  if (storeId) {
+    query = query.eq('id', storeId);
+  } else {
+    query = query.eq('is_primary', true);
+  }
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Fallback: if no primary store found, get the first one
+  if (!data && !storeId) {
+    const { data: fallback } = await supabase
+      .from('stores')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    return NextResponse.json({ store: fallback || null });
   }
 
   return NextResponse.json({ store: data || null });
@@ -90,12 +107,13 @@ export async function PATCH(req: NextRequest) {
 
   const supabase = getServiceClient();
 
-  // Get user's store
-  const { data: store } = await supabase
-    .from('stores')
-    .select('id')
-    .eq('user_id', userId)
-    .single();
+  // Get user's store (support store_id in body for multi-store)
+  const storeId = updates.store_id;
+  let storeQuery = supabase.from('stores').select('id').eq('user_id', userId);
+  if (storeId) {
+    storeQuery = storeQuery.eq('id', storeId);
+  }
+  const { data: store } = await storeQuery.maybeSingle();
 
   if (!store) {
     return NextResponse.json({ error: 'No store found' }, { status: 404 });

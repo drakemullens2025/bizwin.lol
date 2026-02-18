@@ -222,7 +222,7 @@ export default function NewStorePage() {
                 Slug (URL)
               </label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                <span style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)' }}>bizwin.lol/s/</span>
+                <span style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)' }}>bizwin.lol/store/</span>
                 <input
                   type="text"
                   className="input"

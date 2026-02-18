@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient, logProductEvent } from '../../../../lib/supabase';
 
-// GET /api/store/products — list products for user's store
+// GET /api/store/products — list products for user's store (supports ?store_id=)
 export async function GET(req: NextRequest) {
   const userId = req.headers.get('x-user-id');
   if (!userId) {
@@ -9,12 +9,13 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = getServiceClient();
+  const storeId = req.nextUrl.searchParams.get('store_id');
 
-  const { data: store } = await supabase
-    .from('stores')
-    .select('id')
-    .eq('user_id', userId)
-    .single();
+  let storeQuery = supabase.from('stores').select('id').eq('user_id', userId);
+  if (storeId) {
+    storeQuery = storeQuery.eq('id', storeId);
+  }
+  const { data: store } = await storeQuery.maybeSingle();
 
   if (!store) {
     return NextResponse.json({ products: [] });
@@ -42,11 +43,14 @@ export async function POST(req: NextRequest) {
 
   const supabase = getServiceClient();
 
-  const { data: store } = await supabase
-    .from('stores')
-    .select('id, tier')
-    .eq('user_id', userId)
-    .single();
+  const body = await req.json();
+  const requestedStoreId = body.store_id;
+
+  let storeQuery = supabase.from('stores').select('id, tier').eq('user_id', userId);
+  if (requestedStoreId) {
+    storeQuery = storeQuery.eq('id', requestedStoreId);
+  }
+  const { data: store } = await storeQuery.maybeSingle();
 
   if (!store) {
     return NextResponse.json({ error: 'Create a store first' }, { status: 400 });
@@ -64,7 +68,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Product limit reached (${limit}). Upgrade to add more.` }, { status: 403 });
   }
 
-  const body = await req.json();
   const { cj_product_id, cj_variant_id, title, description, price, compare_at_price, cj_cost, images, category } = body;
 
   if (!cj_product_id || !title || !price || !cj_cost) {

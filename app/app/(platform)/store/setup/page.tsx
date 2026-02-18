@@ -2,6 +2,7 @@
 
 import { useUser } from '@stackframe/stack';
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 interface Store {
   id: string;
@@ -27,6 +28,8 @@ interface StoreCritique {
 
 export default function StoreSetupPage() {
   const user = useUser({ or: 'redirect' });
+  const searchParams = useSearchParams();
+  const storeIdParam = searchParams.get('store_id');
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -44,7 +47,8 @@ export default function StoreSetupPage() {
 
   useEffect(() => {
     if (!user) return;
-    fetch('/api/store', { headers: { 'x-user-id': user.id } })
+    const storeUrl = storeIdParam ? `/api/store?store_id=${storeIdParam}` : '/api/store';
+    fetch(storeUrl, { headers: { 'x-user-id': user.id } })
       .then(r => r.json())
       .then(data => {
         if (data.store) {
@@ -128,6 +132,7 @@ export default function StoreSetupPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
         body: JSON.stringify({
+          store_id: store.id,
           store_name: storeName.trim(),
           description: description.trim(),
           theme: { primary: primaryColor, bg: '#ffffff', accent: accentColor },
@@ -150,7 +155,7 @@ export default function StoreSetupPage() {
       const res = await fetch('/api/store', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
-        body: JSON.stringify({ is_published: !store.is_published }),
+        body: JSON.stringify({ store_id: store.id, is_published: !store.is_published }),
       });
       const data = await res.json();
       if (data.store) setStore(data.store);
@@ -203,7 +208,7 @@ export default function StoreSetupPage() {
             {store ? 'Store Settings' : 'Create Your Store'}
           </h4>
           <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--text-tertiary)' }}>
-            {store ? `${store.slug}.bizwin.lol` : 'Set up your branded storefront'}
+            {store ? `bizwin.lol/store/${store.slug}` : 'Set up your branded storefront'}
           </p>
         </div>
         {store && (
