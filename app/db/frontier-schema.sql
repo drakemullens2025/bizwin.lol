@@ -65,3 +65,10 @@ CREATE TABLE IF NOT EXISTS analytics_snapshots (
   UNIQUE(store_id, snapshot_date)
 );
 CREATE INDEX IF NOT EXISTS idx_analytics_store_date ON analytics_snapshots(store_id, snapshot_date);
+
+-- Key-value store for shared serverless state (CJ token, etc.)
+CREATE TABLE IF NOT EXISTS kv_store (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);

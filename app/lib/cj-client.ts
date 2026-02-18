@@ -1,13 +1,11 @@
-import { getCachedProduct, cacheProduct } from './supabase';
-import * as fs from 'fs';
-import * as path from 'path';
+import { getCachedProduct, cacheProduct, getServiceClient } from './supabase';
 
 const CJ_BASE_URL = 'https://developers.cjdropshipping.com/api2.0/v1';
 
 // --- Token lifecycle management ---
 // CJ auth endpoint is rate-limited to 1 call per 300 seconds (5 minutes).
-// Tokens must survive Next.js HMR reloads and full server restarts.
-// Strategy: globalThis for HMR, file cache for cold restarts.
+// Tokens must survive across serverless cold starts.
+// Strategy: globalThis for warm instances, Supabase for cross-instance persistence.
 
 interface CJTokens {
   accessToken: string;
@@ -19,45 +17,63 @@ interface CJTokens {
 // Persist across HMR reloads (Next.js dev wipes module scope on hot reload)
 const globalAny = globalThis as unknown as { __cjTokenCache?: CJTokens; __cjTokenPromise?: Promise<CJTokens> };
 
-// File path for persisting tokens across full server restarts
-const TOKEN_FILE = path.join(process.cwd(), '.cj-token.json');
+const TOKEN_ROW_ID = 'cj-api-token';
 
-function loadTokenFromFile(): CJTokens | null {
+async function loadTokenFromSupabase(): Promise<CJTokens | null> {
   try {
-    if (fs.existsSync(TOKEN_FILE)) {
-      const data = JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf-8'));
-      if (data.accessToken && data.accessTokenExpiresAt > Date.now()) {
-        return data as CJTokens;
+    const supabase = getServiceClient();
+    const { data } = await supabase
+      .from('kv_store')
+      .select('value')
+      .eq('key', TOKEN_ROW_ID)
+      .single();
+    if (data?.value) {
+      const tokens = data.value as CJTokens;
+      if (tokens.accessToken && tokens.accessTokenExpiresAt > Date.now()) {
+        return tokens;
       }
     }
   } catch {
-    // Corrupted file, ignore
+    // Table may not exist yet or Supabase not configured — fall through
   }
   return null;
 }
 
-function saveTokenToFile(tokens: CJTokens) {
+async function saveTokenToSupabase(tokens: CJTokens) {
   try {
-    fs.writeFileSync(TOKEN_FILE, JSON.stringify(tokens, null, 2));
+    const supabase = getServiceClient();
+    await supabase
+      .from('kv_store')
+      .upsert({ key: TOKEN_ROW_ID, value: tokens, updated_at: new Date().toISOString() }, { onConflict: 'key' });
   } catch {
-    // Non-critical, token still in memory
+    // Non-critical — token is still in globalThis for this instance
   }
 }
 
-function getTokenCache(): CJTokens | null {
-  // Check globalThis first (survives HMR), then file (survives restart)
-  if (globalAny.__cjTokenCache) return globalAny.__cjTokenCache;
-  const fromFile = loadTokenFromFile();
-  if (fromFile) {
-    globalAny.__cjTokenCache = fromFile;
-    return fromFile;
+function getTokenCacheSync(): CJTokens | null {
+  // Check globalThis (warm instance only — no async)
+  if (globalAny.__cjTokenCache && globalAny.__cjTokenCache.accessTokenExpiresAt > Date.now()) {
+    return globalAny.__cjTokenCache;
+  }
+  return null;
+}
+
+async function getTokenCache(): Promise<CJTokens | null> {
+  // Check globalThis first (warm instance), then Supabase (cold start)
+  const mem = getTokenCacheSync();
+  if (mem) return mem;
+  const fromDb = await loadTokenFromSupabase();
+  if (fromDb) {
+    globalAny.__cjTokenCache = fromDb;
+    return fromDb;
   }
   return null;
 }
 
 function setTokenCache(tokens: CJTokens) {
   globalAny.__cjTokenCache = tokens;
-  saveTokenToFile(tokens);
+  // Fire-and-forget — don't block the request
+  saveTokenToSupabase(tokens).catch(() => {});
 }
 
 async function fetchAccessToken(): Promise<CJTokens> {
@@ -138,7 +154,12 @@ const REFRESH_BUFFER_MS = 60 * 60 * 1000;
 
 async function getValidToken(): Promise<string> {
   const now = Date.now();
-  const cached = getTokenCache();
+
+  // Fast path: check in-memory first (no async), then fall back to Supabase
+  let cached = getTokenCacheSync();
+  if (!cached) {
+    cached = await getTokenCache();
+  }
 
   // Token is still fresh
   if (cached && now < cached.accessTokenExpiresAt - REFRESH_BUFFER_MS) {
